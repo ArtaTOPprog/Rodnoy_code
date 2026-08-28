@@ -9,10 +9,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-DEBUG = bool(int(os.getenv("DEBUG", 1)))
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY не задан в переменных окружения!")
 
-# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','localhost']
+DEBUG = bool(int(os.getenv("DEBUG", 0)))
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+    if host.strip()
+]
+# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+# ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','localhost']
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -23,7 +31,7 @@ CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 123103121
+CELERY_TIMEZONE = 'Europe/Moskow'
 CELERY_TASK_TRACK_STARTED = True  
 CELERY_TASK_TIME_LIMIT = 30 * 60  
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
@@ -36,8 +44,10 @@ DJANGO_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
-    'debug_toolbar'
 ]
+
+if DEBUG:
+    DJANGO_APPS.append('debug_toolbar')
 
 THIRD_APPS = [
     'rest_framework',
@@ -63,8 +73,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'rodnoycode.urls'
 
@@ -139,7 +151,8 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 12312341
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
@@ -148,6 +161,7 @@ else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
     SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_BROWSER_XSS_FILTER = False
     SECURE_CONTENT_TYPE_NOSNIFF = False
     X_FRAME_OPTIONS = 'DENY'
@@ -158,16 +172,24 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
+        'user': '1000/hour',
     },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
     ]
 }
 

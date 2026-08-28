@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class User(AbstractUser):
@@ -47,8 +48,10 @@ class Place(models.Model):
     name = models.CharField(max_length=100, blank=True, verbose_name="Название")
     description = models.TextField(verbose_name="Описание")
     category = models.CharField(max_length=50, blank=True, verbose_name="Категория")
-    region = models.CharField(max_length=50, blank=True, verbose_name="Регион")
-    city = models.CharField(max_length=50, blank=True, verbose_name="Город")
+    tags = models.JSONField(default=list, blank=True, verbose_name="Теги")
+    is_popular = models.BooleanField(default=False, verbose_name="Популярное место")
+    region = models.CharField(max_length=50, blank=True, db_index=True, verbose_name="Регион")
+    city = models.CharField(max_length=50, blank=True, db_index=True, verbose_name="Город")
     address = models.CharField(max_length=50, blank=True, verbose_name="Адрес")
     latitude = models.FloatField(null=True, blank=True, verbose_name="Широта")
     longitude = models.FloatField(null=True, blank=True, verbose_name="Долгота")
@@ -112,7 +115,7 @@ class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', verbose_name="Пользователь")
     generated_route = models.ForeignKey(Generated_Route, on_delete=models.CASCADE, verbose_name="Машрут")
     text = models.TextField(verbose_name="Текст отзыва")
-    rating = models.IntegerField(default=5, verbose_name="Оценка (1-5)")
+    rating = models.IntegerField(default=5, validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Оценка (1-5)")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Время создания")
     image = models.ImageField(upload_to='reviews/', null=True, blank=True, verbose_name="Фото")
 

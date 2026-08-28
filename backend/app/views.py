@@ -83,7 +83,7 @@ def filter_places(request):
     interest = request.query_params.get('interest', '')
     places = Place.objects.all()
     if region:
-        places = places.filter(tags__contains=[region])
+        places = places.filter(region__contains=[region])
     if interest:
         places = places.filter(tags__contains=[interest])
     serializer = PlaceSerializer(places[:20], many=True)

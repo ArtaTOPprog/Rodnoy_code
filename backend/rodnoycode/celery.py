@@ -1,9 +1,9 @@
 import os
 from celery import Celery
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'rodnoy-code.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'rodnoycode.settings')
 
-app = Celery('rodnoy-code')
+app = Celery('rodnoycode')
 
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
