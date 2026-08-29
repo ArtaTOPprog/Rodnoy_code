@@ -1,6 +1,14 @@
 from django.shortcuts import render
 from .models import User, Questionnaire, Generated_Route, Generated_Route_Place, Review, Place
-from .serializers import UserSerializer, QuestionnareSerializer, Generated_Route_PlaceSerializer, Generated_RouteSerializer, PlaceSerializer, ReviewSerializer
+from .serializers import (
+    UserSerializer,
+    QuestionnareSerializer,
+    Generated_RouteSerializer,
+    Generated_Route_PlaceSerializer,
+    PlaceSerializer,
+    ReviewSerializer,
+    ProfileSerializer,
+)
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action, permission_classes
@@ -27,6 +35,25 @@ class RegisterUser(APIView):
             }, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = ProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = ProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def put(self, request):
+        serializer = ProfileSerializer(request.user, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 class QuestionnaireView(viewsets.ModelViewSet):
     queryset = Questionnaire.objects.all()

@@ -19,8 +19,6 @@ ALLOWED_HOSTS = [
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
     if host.strip()
 ]
-# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
-# ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','localhost']
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
