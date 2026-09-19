@@ -51,6 +51,12 @@ class Generated_RouteSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'start_date', 'end_date', 'duration_days', 'status', 'generated_at', 'updated_at', 'full_text', 'places']
         read_only_fields = ['user', 'generated_at', 'updated_at', 'status', 'full_text']
 
+    def validate_questionnaire(self, questionnaire):
+        request = self.context.get('request')
+        if request and questionnaire.user_id != request.user.id:
+            raise serializers.ValidationError("Эта анкета вам не принадлежит!")
+        return questionnaire
+
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
