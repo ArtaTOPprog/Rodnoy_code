@@ -579,10 +579,11 @@
 }
 
 /* ---------- route detail ---------- */
-.route-detail-head{ display:flex; align-items:center; gap:16px; }
+.route-detail-head{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
 .route-summary{
   font-family:'PT Serif', serif; font-style:italic;
   color:var(--pine-dark); font-size:1.1rem; max-width:56em;
+  white-space:pre-line;
 }
 .route-day{ margin:32px 0; }
 .route-day h3{ font-size:1.2rem; border-bottom:1px solid var(--line); padding-bottom:10px; }
@@ -609,6 +610,18 @@
 .status-pending{ background:rgba(201,166,121,.25); color:#8a6a2f; }
 .status-ready{ background:rgba(62,81,52,.16); color:var(--pine-dark); }
 .status-failed{ background:rgba(160,82,61,.16); color:var(--terracotta); }
+
+.generator-badge{
+  display:inline-block;
+  padding:5px 12px;
+  border-radius:20px;
+  font-size:.82rem;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:help;
+}
+.generator-openai{ background:rgba(62,81,52,.1); color:var(--pine-dark); border:1px solid rgba(62,81,52,.35); }
+.generator-catalog{ background:transparent; color:var(--ink-soft); border:1px solid var(--line); }
 
 @media (max-width: 640px){
   .form-row-2{ grid-template-columns:1fr; }

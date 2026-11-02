@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getRoute, getRouteStatus } from '../api/routes'
 import { createReview } from '../api/reviews'
 import StatusBadge from '../components/StatusBadge'
+import GeneratorBadge from '../components/GeneratorBadge'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -91,6 +92,7 @@ export default function RouteDetail() {
             <div className="route-detail-head">
               <h2>{route.title || 'Маршрут без названия'}</h2>
               <StatusBadge status={route.status} />
+              {route.status === 'ready' && <GeneratorBadge generator={route.generator} />}
             </div>
             {route.description && <p>{route.description}</p>}
           </div>
