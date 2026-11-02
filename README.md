@@ -4,9 +4,10 @@
 о своих интересах и формате поездки — сервис подбирает маршрут из каталога мест
 и собирает его в готовый план на несколько дней.
 
-Проект в активной разработке: сейчас маршрут собирается алгоритмически из базы
-проверенных мест, следующий шаг — подключение LLM для более гибкой генерации
-(см. [Дорожную карту](#дорожная-карта)).
+Места для маршрута подбираются из каталога проверенных объектов, а текст
+маршрута и заметки к каждому месту пишет **OpenAI** — если задан ключ API.
+Без ключа сервис полностью работает: маршрут собирается по каталогу и
+получает понятное описание по дням (см. [Генерация маршрута и OpenAI](#генерация-маршрута-и-openai)).
 
 ---
 
@@ -14,6 +15,7 @@
 
 - [Стек технологий](#стек-технологий)
 - [Архитектура](#архитектура)
+- [Генерация маршрута и OpenAI](#генерация-маршрута-и-openai)
 - [Структура репозитория](#структура-репозитория)
 - [Быстрый старт](#быстрый-старт)
 - [Переменные окружения](#переменные-окружения)
@@ -32,10 +34,11 @@
 - PostgreSQL — основная база данных
 - Redis + Celery — асинхронная генерация маршрутов
 - JWT (`djangorestframework-simplejwt`) — авторизация
+- OpenAI Chat Completions API — текст маршрута и заметки к местам (по желанию)
 
 **Frontend**
-- React 18, Vite
-- React Router — маршрутизация
+- React 19, Vite
+- React Router 7 — маршрутизация
 - Axios — HTTP-клиент с автообновлением JWT
 
 **Инфраструктура**
@@ -58,17 +61,57 @@ flowchart LR
         Cache[(Redis)]
     end
 
+    subgraph External
+        OpenAI[OpenAI API]
+    end
+
     FE -- "REST + JWT" --> API
     API -- "чтение/запись" --> DB
     API -- "ставит задачу" --> Cache
     Worker -- "забирает задачу" --> Cache
     Worker -- "пишет результат" --> DB
+    Worker -. "текст маршрута,<br/>если задан ключ" .-> OpenAI
 ```
 
 Создание маршрута не блокирует запрос пользователя: `POST /api/routes/` сразу
 возвращает объект со статусом `pending`, а сама генерация происходит в фоне
 через Celery. Фронтенд опрашивает `GET /api/routes/{id}/status/`, пока статус
 не сменится на `ready` или `failed`.
+
+---
+
+## Генерация маршрута и OpenAI
+
+Маршрут собирает Celery-задача `generate_itinerary` (`backend/app/tasks.py`):
+
+1. **Подбор мест.** Из каталога `Place` берутся места по региону или городу из анкеты,
+   затем — по интересам (поле `tags`). Если подходящих мест меньше трёх, добавляются
+   популярные места региона (`is_popular`, затем по рейтингу). Всего до 15 мест.
+2. **Раскладка по дням.** Число дней берётся из анкеты (`duration_days`, от 1 до 7,
+   по умолчанию 3), места распределяются по дням равномерно.
+3. **Текст маршрута.**
+   - **Задан `OPENAI_API_KEY`** — анкета и список мест отправляются в OpenAI
+     (`backend/app/openai_client.py`). Модель возвращает JSON: название маршрута,
+     план поездки по дням и заметку к каждому месту. Модели запрещено выдумывать места,
+     адреса и цены; заметки к местам не из списка отбрасываются.
+   - **Ключа нет или OpenAI недоступен** — маршрут собирается по каталогу:
+     «Маршрут: Казань на 2 дня. День 1: …». Генерация при этом не падает.
+4. **Результат.** У маршрута статус `ready` и поле `generator`: `openai` или `catalog`.
+   На странице маршрута это видно по значку «Составлен ИИ (OpenAI)» или «Подбор по каталогу».
+
+Чтобы включить ИИ, впишите ключ в `.env` и перезапустите сервисы:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Клиент работает через стандартную библиотеку Python, отдельный пакет не нужен.
+Подойдёт любой OpenAI-совместимый сервис — укажите его адрес в `OPENAI_BASE_URL`.
+
+> Ключ хранится только на сервере (backend и Celery) и никогда не попадает во frontend.
+> В OpenAI уходят ответы анкеты и описания мест — персональные данные пользователя
+> (имя, почта, телефон) не передаются.
 
 ---
 
@@ -81,7 +124,9 @@ rodnoy-code/
 │   │   ├── models.py         # User, Questionnaire, Place, Generated_Route, Review...
 │   │   ├── serializers.py
 │   │   ├── views.py
-│   │   ├── tasks.py          # Celery-задача generate_itinerary
+│   │   ├── tasks.py          # Celery-задача generate_itinerary: подбор мест и текст маршрута
+│   │   ├── openai_client.py  # запрос к OpenAI Chat Completions
+│   │   ├── tests.py          # тесты генерации и API
 │   │   └── urls.py
 │   ├── rodnoycode/           # настройки Django-проекта
 │   │   ├── settings.py
@@ -94,9 +139,10 @@ rodnoy-code/
 │   ├── src/
 │   │   ├── api/               # обёртки над каждым эндпоинтом backend
 │   │   ├── context/           # AuthContext
-│   │   ├── components/        # Header, Footer, ProtectedRoute, StatusBadge
-│   │   └── pages/              # Landing, Register, Login, Questionnaire,
-│   │                            # MyRoutes, RouteDetail, Profile
+│   │   ├── components/        # Header, Footer, ProtectedRoute, StatusBadge, GeneratorBadge
+│   │   ├── pages/             # Landing, Register, Login, Questionnaire,
+│   │   │                      # MyRoutes, RouteDetail, Profile, NotFound
+│   │   └── styles/            # global.css
 │   ├── Dockerfile
 │   └── package.json
 ├── docker-compose.yml
@@ -122,12 +168,13 @@ cp .env.example .env
 ```
 
 Откройте `.env` и задайте свои значения — как минимум `DJANGO_SECRET_KEY` и `DB_PASSWORD`
-(см. [Переменные окружения](#переменные-окружения)).
+(см. [Переменные окружения](#переменные-окружения)). Для генерации текста через ИИ
+добавьте `OPENAI_API_KEY` — без него всё тоже работает.
 
-```bash
-cd frontend
-cp .env.example .env
-cd ..
+Если backend будет не на `http://localhost:8000`, создайте `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
 ### 2. Запустите все сервисы
@@ -154,7 +201,8 @@ docker compose exec backend python manage.py createsuperuser
 | Django admin      | http://localhost:8000/admin/   |
 
 Чтобы генерация маршрутов работала не вхолостую, добавьте через `/admin/`
-несколько тестовых записей `Place` с реальным полем `region`.
+несколько записей `Place`: заполните `region` и `city`, а в `tags` укажите интересы
+из анкеты, например `["история", "архитектура"]`. Отметьте `is_popular` у главных мест региона.
 
 ---
 
@@ -174,7 +222,10 @@ docker compose exec backend python manage.py createsuperuser
 | `REDIS_HOST`          | Хост Redis                                    | `redis`                  |
 | `REDIS_PORT`          | Порт Redis                                    | `6379`                    |
 | `ALLOWED_HOSTS`       | Разрешённые хосты Django (через запятую)     | `localhost,127.0.0.1`    |
-| `CORS_ALLOWED_ORIGINS`| Разрешённые источники для CORS               | `http://localhost:5173`  |
+| `OPENAI_API_KEY`      | Ключ OpenAI; пусто — маршрут по каталогу     | `sk-...`                 |
+| `OPENAI_MODEL`        | Модель OpenAI                                 | `gpt-4o-mini`            |
+| `OPENAI_BASE_URL`     | Адрес API, можно OpenAI-совместимый           | `https://api.openai.com/v1` |
+| `OPENAI_TIMEOUT`      | Таймаут запроса к OpenAI, секунд              | `60`                      |
 
 ### `frontend/.env`
 
@@ -182,8 +233,8 @@ docker compose exec backend python manage.py createsuperuser
 |-----------------------|-------------------------------------------------------|-------------------------------------|
 | `VITE_API_BASE_URL`   | Адрес backend API, доступный из браузера              | `http://localhost:8000/api`         |
 
-Полный шаблон для обоих файлов — в `.env.example` и `frontend/.env.example`.
-Реальные `.env`-файлы **никогда не коммитятся** — они в `.gitignore`.
+Полный шаблон корневого файла — в `.env.example`. Реальные `.env`-файлы
+**никогда не коммитятся** — они в `.gitignore`.
 
 ---
 
@@ -199,9 +250,9 @@ docker compose exec backend python manage.py createsuperuser
 | GET   | `/profile/`                   | Авторизован       | Данные текущего пользователя                |
 | PATCH | `/profile/`                   | Авторизован       | Обновление профиля                           |
 | GET/POST | `/questionnaires/`          | Авторизован       | Список/создание своих анкет                  |
-| GET/POST | `/routes/`                  | Авторизован       | Список/создание своих маршрутов              |
+| GET/POST | `/routes/`                  | Авторизован       | Список/создание своих маршрутов; при создании нужен `questionnaire` — id своей анкеты |
 | GET   | `/routes/{id}/`               | Авторизован (владелец) | Детали маршрута с местами по дням       |
-| GET   | `/routes/{id}/status/`        | Авторизован (владелец) | Статус генерации (`pending/ready/failed`) |
+| GET   | `/routes/{id}/status/`        | Авторизован (владелец) | Статус генерации (`pending/ready/failed`) и `generator` |
 | GET   | `/places/`                     | Открытый          | Каталог мест (пагинация)                     |
 | GET   | `/filter-places/`              | Открытый          | Фильтр мест по региону/интересу              |
 | GET/POST | `/reviews/`                  | Авторизован       | Список/создание своих отзывов                |
@@ -248,8 +299,9 @@ docker compose exec backend python manage.py migrate
 # Django shell
 docker compose exec backend python manage.py shell
 
-# Прогнать проверки Django перед коммитом
+# Прогнать проверки Django и тесты перед коммитом
 docker compose exec backend python manage.py check
+docker compose exec backend python manage.py test app
 ```
 
 ### Frontend отдельно от Docker (быстрее для правки UI)
@@ -284,10 +336,11 @@ Backend при этом всё равно должен быть поднят (`d
 - [x] Анкета и алгоритмический подбор маршрута
 - [x] Асинхронная генерация через Celery
 - [x] Фронтенд на React с полной интеграцией API
-- [ ] Генерация маршрута через LLM поверх каталога `Place`
+- [x] Генерация текста маршрута через OpenAI поверх каталога `Place`
 - [ ] Загрузка фото к отзывам через интерфейс
 - [ ] Production-конфигурация (Gunicorn, non-root контейнеры, HTTPS)
-- [ ] Автотесты (backend и frontend) + CI
+- [x] Автотесты backend: генерация маршрута, OpenAI, права доступа
+- [ ] Автотесты frontend + CI
 
 ---
 
