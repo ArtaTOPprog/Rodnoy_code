@@ -3,7 +3,7 @@ services:
     image: postgres:15-alpine
     container_name: rodnoy_db
     volumes:
-      - postgres_data:/var/lib/postgres/data/
+      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=rodnoy_db
       - POSTGRES_USER=rodnoy_user
@@ -47,6 +47,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
     depends_on:
       db:
         condition: service_healthy
@@ -85,6 +87,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - DJANGO_SETTINGS_MODULE=rodnoycode.settings
     depends_on:
       - db

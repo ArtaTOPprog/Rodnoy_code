@@ -21,6 +21,11 @@ ALLOWED_HOSTS = [
 ]
 
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+OPENAI_TIMEOUT = float(os.getenv("OPENAI_TIMEOUT", "60"))
+
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 
@@ -29,7 +34,7 @@ CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Europe/Moskow'
+CELERY_TIMEZONE = 'Europe/Moscow'
 CELERY_TASK_TRACK_STARTED = True  
 CELERY_TASK_TIME_LIMIT = 30 * 60  
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60

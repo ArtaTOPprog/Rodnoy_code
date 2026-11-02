@@ -45,11 +45,13 @@ class Generated_Route_PlaceSerializer(serializers.ModelSerializer):
         fields = ['id', 'place', 'day_number', 'order', 'notes']
 
 class Generated_RouteSerializer(serializers.ModelSerializer):
-    place = Generated_Route_PlaceSerializer(source = 'generated_route_place_set', many=True, read_only=True)
+    places = Generated_Route_PlaceSerializer(source='generated_route_place_set', many=True, read_only=True)
+
     class Meta:
         model = Generated_Route
-        fields = ['id', 'title', 'description', 'start_date', 'end_date', 'duration_days', 'status', 'generated_at', 'updated_at', 'full_text', 'places']
-        read_only_fields = ['user', 'generated_at', 'updated_at', 'status', 'full_text']
+        fields = ['id', 'questionnaire', 'title', 'description', 'start_date', 'end_date', 'duration_days', 'status', 'generator', 'generated_at', 'updated_at', 'full_text', 'places']
+        read_only_fields = ['generated_at', 'updated_at', 'status', 'generator', 'full_text']
+        extra_kwargs = {'questionnaire': {'required': True, 'allow_null': False}}
 
     def validate_questionnaire(self, questionnaire):
         request = self.context.get('request')
@@ -71,6 +73,6 @@ class ReviewSerializer(serializers.ModelSerializer):
     def validate_generated_route(self, route):
         request = self.context.get('request')
 
-        if request and route.user_id != request.user_id:
+        if request and route.user_id != request.user.id:
             raise serializers.ValidationError("Этот маршрут вам не принадлежит!")
         return route

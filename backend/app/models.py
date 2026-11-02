@@ -75,6 +75,11 @@ class Generated_Route(models.Model):
         ('failed', 'Ошибка'),
     )
 
+    GENERATOR_CHOICES = (
+        ('catalog', 'Подбор по каталогу'),
+        ('openai', 'OpenAI'),
+    )
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='generated_route', verbose_name="Пользователь")
     questionnaire = models.ForeignKey(Questionnaire, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Анкета")
     title = models.CharField(max_length=200, blank=True, verbose_name="Название")
@@ -83,6 +88,7 @@ class Generated_Route(models.Model):
     end_date = models.DateField(null=True, blank=True, verbose_name="Дата окончания")
     duration_days = models.IntegerField(null=True, blank=True, verbose_name="Длительность (дней)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
+    generator = models.CharField(max_length=20, choices=GENERATOR_CHOICES, default='catalog', verbose_name="Кем составлен")
     generated_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата генерации")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     full_text = models.TextField(blank=True, verbose_name="Полный текст маршрута")

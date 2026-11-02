@@ -89,6 +89,7 @@ class Generated_RouteView(viewsets.ModelViewSet):
         return Response({
             'id': itinerary.id,
             'status': itinerary.status,
+            'generator': itinerary.generator,
             'full_text': itinerary.full_text if itinerary.status == 'ready' else None
         })
 
@@ -110,7 +111,7 @@ def filter_places(request):
     interest = request.query_params.get('interest', '')
     places = Place.objects.all()
     if region:
-        places = places.filter(region__contains=[region])
+        places = places.filter(region__icontains=region)
     if interest:
         places = places.filter(tags__contains=[interest])
     serializer = PlaceSerializer(places[:20], many=True)
